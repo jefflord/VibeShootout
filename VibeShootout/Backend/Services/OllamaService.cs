@@ -6,6 +6,31 @@ using System.Threading.Tasks;
 
 namespace VibeShootout.Backend.Services
 {
+    public class OllamaResponse
+    {
+        public string Response { get; set; } = "";
+        public OllamaMetrics? Metrics { get; set; }
+    }
+
+    public class OllamaMetrics
+    {
+        public long TotalDuration { get; set; }
+        public long LoadDuration { get; set; }
+        public int PromptEvalCount { get; set; }
+        public long PromptEvalDuration { get; set; }
+        public int EvalCount { get; set; }
+        public long EvalDuration { get; set; }
+        
+        // Calculated properties
+        public double TotalDurationSeconds => TotalDuration / 1_000_000_000.0;
+        public double LoadDurationSeconds => LoadDuration / 1_000_000_000.0;
+        public double PromptEvalDurationSeconds => PromptEvalDuration / 1_000_000_000.0;
+        public double EvalDurationSeconds => EvalDuration / 1_000_000_000.0;
+        
+        public double PromptTokensPerSecond => PromptEvalDurationSeconds > 0 ? PromptEvalCount / PromptEvalDurationSeconds : 0;
+        public double OutputTokensPerSecond => EvalDurationSeconds > 0 ? EvalCount / EvalDurationSeconds : 0;
+    }
+
     public class OllamaService
     {
         private readonly HttpClient _httpClient;
@@ -15,7 +40,7 @@ namespace VibeShootout.Backend.Services
             _httpClient = httpClient;
         }
 
-        public async Task<string> GetCodeReviewAsync(string ollamaUrl, string prompt, string diff)
+        public async Task<OllamaResponse> GetCodeReviewWithMetricsAsync(string ollamaUrl, string prompt, string diff)
         {
             try
             {
@@ -42,17 +67,54 @@ namespace VibeShootout.Backend.Services
                 var responseJson = await response.Content.ReadAsStringAsync();
                 var responseObj = JsonSerializer.Deserialize<JsonElement>(responseJson);
                 
+                var result = new OllamaResponse();
+                
+                // Extract the response text
                 if (responseObj.TryGetProperty("response", out var responseProperty))
                 {
-                    return responseProperty.GetString() ?? "No response from Ollama";
+                    result.Response = responseProperty.GetString() ?? "No response from Ollama";
+                }
+                else
+                {
+                    result.Response = "No response from Ollama";
                 }
 
-                return "No response from Ollama";
+                // Extract performance metrics
+                var metrics = new OllamaMetrics();
+                
+                if (responseObj.TryGetProperty("total_duration", out var totalDuration))
+                    metrics.TotalDuration = totalDuration.GetInt64();
+                
+                if (responseObj.TryGetProperty("load_duration", out var loadDuration))
+                    metrics.LoadDuration = loadDuration.GetInt64();
+                
+                if (responseObj.TryGetProperty("prompt_eval_count", out var promptEvalCount))
+                    metrics.PromptEvalCount = promptEvalCount.GetInt32();
+                
+                if (responseObj.TryGetProperty("prompt_eval_duration", out var promptEvalDuration))
+                    metrics.PromptEvalDuration = promptEvalDuration.GetInt64();
+                
+                if (responseObj.TryGetProperty("eval_count", out var evalCount))
+                    metrics.EvalCount = evalCount.GetInt32();
+                
+                if (responseObj.TryGetProperty("eval_duration", out var evalDuration))
+                    metrics.EvalDuration = evalDuration.GetInt64();
+
+                result.Metrics = metrics;
+
+                return result;
             }
             catch (Exception ex)
             {
                 throw new Exception($"Failed to get code review from Ollama: {ex.Message}", ex);
             }
+        }
+
+        // Keep the old method for backward compatibility
+        public async Task<string> GetCodeReviewAsync(string ollamaUrl, string prompt, string diff)
+        {
+            var response = await GetCodeReviewWithMetricsAsync(ollamaUrl, prompt, diff);
+            return response.Response;
         }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using VibeShootout.Backend.Services;
 
 namespace VibeShootout.Backend.Models
 {
@@ -12,13 +13,16 @@ namespace VibeShootout.Backend.Models
         public bool IsSuccess { get; set; }
         public string? ErrorMessage { get; set; }
         
-        // New timing properties
+        // Timing properties
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
         public TimeSpan Duration => EndTime - StartTime;
         public double DurationMs => Duration.TotalMilliseconds;
         
-        // New checksum property for duplicate detection
+        // Checksum property for duplicate detection
         public string DiffChecksum { get; set; } = "";
+        
+        // Ollama performance metrics
+        public OllamaMetrics? OllamaMetrics { get; set; }
     }
 }

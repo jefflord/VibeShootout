@@ -176,14 +176,29 @@ namespace VibeShootout.Backend.Services
                 // Add to cache before processing to prevent concurrent duplicates
                 _reviewCache.AddReview(diffChecksum);
 
-                var review = await _ollamaService.GetCodeReviewAsync(config.OllamaUrl, config.ReviewPrompt, diff);
+                // Use the new method that returns metrics
+                var ollamaResponse = await _ollamaService.GetCodeReviewWithMetricsAsync(config.OllamaUrl, config.ReviewPrompt, diff);
 
                 result.EndTime = DateTime.UtcNow;
                 result.Diff = diff;
-                result.Review = review;
+                result.Review = ollamaResponse.Response;
+                result.OllamaMetrics = ollamaResponse.Metrics;
                 result.IsSuccess = true;
 
-                Console.WriteLine($"Code review completed successfully in {result.DurationMs:F0}ms (cache size: {_reviewCache.CacheSize})");
+                // Log performance metrics
+                if (ollamaResponse.Metrics != null)
+                {
+                    var metrics = ollamaResponse.Metrics;
+                    Console.WriteLine($"Code review completed in {result.DurationMs:F0}ms total");
+                    Console.WriteLine($"Ollama metrics: Total: {metrics.TotalDurationSeconds:F2}s, " +
+                                    $"Load: {metrics.LoadDurationSeconds:F2}s, " +
+                                    $"Prompt: {metrics.PromptTokensPerSecond:F1} tok/s ({metrics.PromptEvalCount} tokens), " +
+                                    $"Output: {metrics.OutputTokensPerSecond:F1} tok/s ({metrics.EvalCount} tokens)");
+                }
+                else
+                {
+                    Console.WriteLine($"Code review completed successfully in {result.DurationMs:F0}ms (cache size: {_reviewCache.CacheSize})");
+                }
 
                 CodeReviewCompleted?.Invoke(result);
             }

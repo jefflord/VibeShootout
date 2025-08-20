@@ -46,6 +46,13 @@ const ReviewMeta = styled.div`
   gap: 0.25rem;
 `;
 
+const MetricsRow = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+`;
+
 const Timestamp = styled.span`
   color: #6b7280;
   font-size: 0.85rem;
@@ -58,6 +65,26 @@ const Duration = styled.span`
   background: rgba(5, 150, 105, 0.1);
   padding: 0.2rem 0.5rem;
   border-radius: 12px;
+`;
+
+const OllamaMetric = styled.span`
+  color: #7c2d12;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: rgba(124, 45, 18, 0.1);
+  padding: 0.15rem 0.4rem;
+  border-radius: 8px;
+  font-family: monospace;
+`;
+
+const TokenMetric = styled.span`
+  color: #0369a1;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: rgba(3, 105, 161, 0.1);
+  padding: 0.15rem 0.4rem;
+  border-radius: 8px;
+  font-family: monospace;
 `;
 
 const Checksum = styled.span`
@@ -81,6 +108,51 @@ const GitBadge = styled.span`
 
 const ReviewContent = styled.div`
   padding: 1.5rem;
+`;
+
+const MetricsSection = styled.div`
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+`;
+
+const MetricsHeader = styled.div`
+  background: #e2e8f0;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #475569;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const MetricsGrid = styled.div`
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+`;
+
+const MetricItem = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`;
+
+const MetricLabel = styled.span`
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+`;
+
+const MetricValue = styled.span`
+  font-size: 1rem;
+  color: #1f2937;
+  font-weight: 600;
+  font-family: monospace;
 `;
 
 const DiffSection = styled.div`
@@ -319,6 +391,14 @@ function CodeReviewDisplay({ reviews }) {
     }
   };
 
+  const formatSeconds = (seconds) => {
+    return `${seconds.toFixed(2)}s`;
+  };
+
+  const formatTokensPerSecond = (tokensPerSecond) => {
+    return `${tokensPerSecond.toFixed(1)} tok/s`;
+  };
+
   const getDiffStats = (diff) => {
     if (!diff) return '';
     const lines = diff.split('\n');
@@ -365,6 +445,7 @@ function CodeReviewDisplay({ reviews }) {
         const isError = !review.isSuccess && !isSkipped(review);
         const skipped = isSkipped(review);
         const diffType = getDiffType(review.diff);
+        const hasMetrics = review.ollamaMetrics;
         
         return (
           <ReviewCard key={review.id}>
@@ -379,23 +460,85 @@ function CodeReviewDisplay({ reviews }) {
               
               <ReviewMeta>
                 <Timestamp>{formatTimestamp(review.timestamp)}</Timestamp>
-                {review.durationMs !== undefined && (
-                  <Duration>?? {formatDuration(review.durationMs)}</Duration>
+                
+                <MetricsRow>
+                  {review.durationMs !== undefined && (
+                    <Duration>?? {formatDuration(review.durationMs)}</Duration>
+                  )}
+                  {diffType && (
+                    <GitBadge title="Git diff type">?? {diffType}</GitBadge>
+                  )}
+                </MetricsRow>
+                
+                {hasMetrics && (
+                  <MetricsRow>
+                    <TokenMetric title="Input tokens per second">
+                      ?? {formatTokensPerSecond(hasMetrics.promptTokensPerSecond)}
+                    </TokenMetric>
+                    <TokenMetric title="Output tokens per second">
+                      ?? {formatTokensPerSecond(hasMetrics.outputTokensPerSecond)}
+                    </TokenMetric>
+                    <OllamaMetric title="Total Ollama processing time">
+                      ?? {formatSeconds(hasMetrics.totalDurationSeconds)}
+                    </OllamaMetric>
+                  </MetricsRow>
                 )}
-                {diffType && (
-                  <GitBadge title="Git diff type">?? {diffType}</GitBadge>
-                )}
-                {review.diffChecksum && (
-                  <Checksum title="Diff checksum for duplicate detection">
-                    #{review.diffChecksum.substring(0, 8)}
-                  </Checksum>
-                )}
+                
+                <MetricsRow>
+                  {review.diffChecksum && (
+                    <Checksum title="Diff checksum for duplicate detection">
+                      #{review.diffChecksum.substring(0, 8)}
+                    </Checksum>
+                  )}
+                </MetricsRow>
               </ReviewMeta>
             </ReviewHeader>
             
             <ReviewContent>
               {review.isSuccess ? (
                 <>
+                  {hasMetrics && (
+                    <MetricsSection>
+                      <MetricsHeader>
+                        ?? Ollama Performance Metrics
+                      </MetricsHeader>
+                      <MetricsGrid>
+                        <MetricItem>
+                          <MetricLabel>Total Processing Time</MetricLabel>
+                          <MetricValue>{formatSeconds(hasMetrics.totalDurationSeconds)}</MetricValue>
+                        </MetricItem>
+                        <MetricItem>
+                          <MetricLabel>Model Load Time</MetricLabel>
+                          <MetricValue>{formatSeconds(hasMetrics.loadDurationSeconds)}</MetricValue>
+                        </MetricItem>
+                        <MetricItem>
+                          <MetricLabel>Input Tokens</MetricLabel>
+                          <MetricValue>{hasMetrics.promptEvalCount} tokens</MetricValue>
+                        </MetricItem>
+                        <MetricItem>
+                          <MetricLabel>Input Speed</MetricLabel>
+                          <MetricValue>{formatTokensPerSecond(hasMetrics.promptTokensPerSecond)}</MetricValue>
+                        </MetricItem>
+                        <MetricItem>
+                          <MetricLabel>Output Tokens</MetricLabel>
+                          <MetricValue>{hasMetrics.evalCount} tokens</MetricValue>
+                        </MetricItem>
+                        <MetricItem>
+                          <MetricLabel>Output Speed</MetricLabel>
+                          <MetricValue>{formatTokensPerSecond(hasMetrics.outputTokensPerSecond)}</MetricValue>
+                        </MetricItem>
+                        <MetricItem>
+                          <MetricLabel>Prompt Processing Time</MetricLabel>
+                          <MetricValue>{formatSeconds(hasMetrics.promptEvalDurationSeconds)}</MetricValue>
+                        </MetricItem>
+                        <MetricItem>
+                          <MetricLabel>Generation Time</MetricLabel>
+                          <MetricValue>{formatSeconds(hasMetrics.evalDurationSeconds)}</MetricValue>
+                        </MetricItem>
+                      </MetricsGrid>
+                    </MetricsSection>
+                  )}
+
                   {review.diff && (
                     <DiffSection>
                       <DiffHeader>
