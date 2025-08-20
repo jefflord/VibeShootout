@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -38,13 +39,17 @@ namespace VibeShootout.Backend
             {
                 options.AddDefaultPolicy(policy =>
                 {
-                    policy.AllowAnyOrigin()
+                    policy.WithOrigins("http://localhost:5632", "http://127.0.0.1:5632")
                           .AllowAnyMethod()
-                          .AllowAnyHeader();
+                          .AllowAnyHeader()
+                          .AllowCredentials(); // Important for SignalR
                 });
             });
 
-            builder.Services.AddSignalR();
+            builder.Services.AddSignalR(options =>
+            {
+                options.EnableDetailedErrors = true; // For debugging
+            });
             builder.Services.AddControllers();
 
             // Configure URLs
@@ -56,30 +61,49 @@ namespace VibeShootout.Backend
             _app.UseCors();
             
             // Configure static files to serve React app
-            var clientAppPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ClientApp", "build");
+            var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            Console.WriteLine($"Base directory: {baseDirectory}");
+            
+            var clientAppPath = Path.Combine(baseDirectory, "ClientApp", "build");
             Console.WriteLine($"Looking for React build at: {clientAppPath}");
+            Console.WriteLine($"Directory exists: {Directory.Exists(clientAppPath)}");
+            
+            PhysicalFileProvider? reactFileProvider = null;
             
             if (Directory.Exists(clientAppPath))
             {
                 Console.WriteLine("Found React build folder, serving React app");
-                _app.UseDefaultFiles(new DefaultFilesOptions
+                var files = Directory.GetFiles(clientAppPath, "*", SearchOption.AllDirectories);
+                Console.WriteLine($"Found {files.Length} files in React build");
+                foreach (var file in files.Take(5)) // Show first 5 files
                 {
-                    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(clientAppPath)
-                });
+                    Console.WriteLine($"  - {Path.GetRelativePath(clientAppPath, file)}");
+                }
+                
+                reactFileProvider = new PhysicalFileProvider(clientAppPath);
+                
+                // Configure static files FIRST (before default files)
                 _app.UseStaticFiles(new StaticFileOptions
                 {
-                    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(clientAppPath)
+                    FileProvider = reactFileProvider,
+                    RequestPath = "" // Serve from root
                 });
+                
+                Console.WriteLine("Static file middleware configured for React app");
             }
             else
             {
                 Console.WriteLine("React build folder not found, serving from wwwroot");
+                var wwwrootPath = Path.Combine(baseDirectory, "wwwroot");
+                Console.WriteLine($"Wwwroot path: {wwwrootPath}");
+                Console.WriteLine($"Wwwroot exists: {Directory.Exists(wwwrootPath)}");
+                
                 // Fallback to serving from wwwroot if build folder doesn't exist
-                _app.UseDefaultFiles();
                 _app.UseStaticFiles();
+                Console.WriteLine("Static file middleware configured for wwwroot");
             }
 
-            // API endpoints
+            // API endpoints (these take priority over fallback)
             _app.MapGet("/api/config", async () =>
             {
                 Console.WriteLine("GET /api/config called");
@@ -98,10 +122,12 @@ namespace VibeShootout.Backend
                     if (!string.IsNullOrEmpty(config.RepositoryPath))
                     {
                         await _fileWatcherService.StartWatchingAsync(config.RepositoryPath);
+                        Console.WriteLine($"File watcher started for: {config.RepositoryPath}");
                     }
                     else
                     {
                         _fileWatcherService.StopWatching();
+                        Console.WriteLine("File watcher stopped");
                     }
                 }
                 catch (Exception ex)
@@ -116,8 +142,22 @@ namespace VibeShootout.Backend
             // SignalR hub
             _app.MapHub<CodeReviewHub>("/hubs/codereview");
 
-            // Fallback to index.html for SPA
-            _app.MapFallbackToFile("index.html");
+            // SPA fallback - this should serve index.html for any unmatched routes
+            if (reactFileProvider != null)
+            {
+                // Use the React app's index.html for SPA fallback
+                _app.MapFallbackToFile("index.html", new StaticFileOptions
+                {
+                    FileProvider = reactFileProvider
+                });
+                Console.WriteLine("SPA fallback configured for React app");
+            }
+            else
+            {
+                // Fallback to wwwroot index.html
+                _app.MapFallbackToFile("index.html");
+                Console.WriteLine("SPA fallback configured for wwwroot");
+            }
 
             // Store hub context for later use
             _hubContext = _app.Services.GetRequiredService<IHubContext<CodeReviewHub>>();
@@ -139,14 +179,33 @@ namespace VibeShootout.Backend
                     Console.WriteLine($"Failed to start file watcher: {ex.Message}");
                 }
             }
+            else
+            {
+                Console.WriteLine("No repository path configured, file watcher not started");
+            }
         }
 
         private async void OnCodeReviewCompleted(CodeReviewResult result)
         {
             Console.WriteLine($"Code review completed: {(result.IsSuccess ? "Success" : "Failed")}");
+            Console.WriteLine($"Review text length: {result.Review?.Length ?? 0}");
+            
             if (_hubContext != null)
             {
-                await _hubContext.Clients.All.SendAsync("CodeReviewCompleted", result);
+                try
+                {
+                    Console.WriteLine("Sending CodeReviewCompleted to all SignalR clients...");
+                    await _hubContext.Clients.All.SendAsync("CodeReviewCompleted", result);
+                    Console.WriteLine("SignalR message sent successfully");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to send SignalR message: {ex.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("SignalR hub context is null - cannot send message");
             }
         }
 

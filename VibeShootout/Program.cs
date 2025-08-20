@@ -49,7 +49,7 @@ namespace VibeShootout
                 Console.WriteLine("Showing MainWindow...");
                 mainWindow.Show();
                 
-                Console.WriteLine("Running WPF message loop...");
+                Console.WriteLine("Running WPF message loop...XXXyyyZZ 111");
                 app.Run();
                 
                 Console.WriteLine("VibeShootout application has closed.");

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeShootout - Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .connected { background: rgba(76, 175, 80, 0.3); }
+        .disconnected { background: rgba(244, 67, 54, 0.3); }
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: rgba(255, 255, 255, 0.3); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>?? VibeShootout Debug Page</h1>
+        
+        <div id="status" class="status disconnected">
+            <h3>Connection Status: <span id="statusText">Disconnected</span></h3>
+        </div>
+
+        <div class="status">
+            <h3>Actions</h3>
+            <button onclick="testAPI()">Test API</button>
+            <button onclick="testSignalR()">Test SignalR</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+
+        <div class="status">
+            <h3>Debug Log</h3>
+            <div id="log" class="log">Initializing...\n</div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@microsoft/signalr@latest/dist/browser/signalr.min.js"></script>
+    <script>
+        let connection = null;
+        let isConnected = false;
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            isConnected = connected;
+            const statusDiv = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+            
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusText.textContent = 'Connected';
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusText.textContent = 'Disconnected';
+            }
+        }
+
+        async function testAPI() {
+            log('Testing API connection...');
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const config = await response.json();
+                    log(`API test successful: ${JSON.stringify(config)}`);
+                } else {
+                    log(`API test failed: ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                log(`API test error: ${error.message}`);
+            }
+        }
+
+        async function testSignalR() {
+            log('Testing SignalR connection...');
+            try {
+                if (connection) {
+                    await connection.stop();
+                }
+
+                connection = new signalR.HubConnectionBuilder()
+                    .withUrl('/hubs/codereview')
+                    .withAutomaticReconnect()
+                    .configureLogging(signalR.LogLevel.Information)
+                    .build();
+
+                connection.on('CodeReviewCompleted', (result) => {
+                    log(`Received CodeReviewCompleted: ${JSON.stringify(result)}`);
+                });
+
+                connection.onconnected = () => {
+                    log('SignalR: Connected');
+                    updateStatus(true);
+                };
+
+                connection.onreconnecting = () => {
+                    log('SignalR: Reconnecting...');
+                    updateStatus(false);
+                };
+
+                connection.onreconnected = () => {
+                    log('SignalR: Reconnected');
+                    updateStatus(true);
+                };
+
+                connection.onclose = () => {
+                    log('SignalR: Connection closed');
+                    updateStatus(false);
+                };
+
+                await connection.start();
+                log('SignalR connection started successfully');
+                updateStatus(true);
+            } catch (error) {
+                log(`SignalR connection error: ${error.message}`);
+                updateStatus(false);
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        // Auto-start tests
+        log('Starting automatic tests...');
+        testAPI();
+        setTimeout(() => {
+            testSignalR();
+        }, 1000);
+    </script>
+</body>
+</html>

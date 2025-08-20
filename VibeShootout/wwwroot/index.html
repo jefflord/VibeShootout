@@ -35,19 +35,64 @@
             background: rgba(255, 255, 255, 0.1);
             padding: 1rem;
             border-radius: 8px;
+            margin: 1rem 0;
+        }
+        .links {
             margin-top: 2rem;
+        }
+        a {
+            color: white;
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            margin: 0 0.5rem;
+            display: inline-block;
+        }
+        a:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>?? VibeShootout</h1>
+        <h1>🎯 VibeShootout</h1>
         <p>AI-Powered Code Reviewer</p>
-        <p>The React application is loading...</p>
+        
         <div class="status">
-            <p>If you see this message, the React build may not be available. Please build the React app first:</p>
-            <code>cd ClientApp && npm install && npm run build</code>
+            <h3>Status: Fallback Page</h3>
+            <p>You're seeing this page because the React build is not available.</p>
+            <p>This means the React app files couldn't be loaded, but the web server is running!</p>
+        </div>
+
+        <div class="links">
+            <a href="/debug.html">🔧 Debug Page</a>
+            <a href="/api/config">📋 API Test</a>
+        </div>
+
+        <div class="status">
+            <h4>To fix this:</h4>
+            <ol style="text-align: left; max-width: 400px; margin: 0 auto;">
+                <li>Navigate to <code>ClientApp</code> folder</li>
+                <li>Run <code>npm run build</code></li>
+                <li>Restart the application</li>
+            </ol>
         </div>
     </div>
+
+    <script>
+        console.log('VibeShootout fallback page loaded');
+        console.log('Web server is running on port 5632');
+        
+        // Test API connectivity
+        fetch('/api/config')
+            .then(response => response.json())
+            .then(data => {
+                console.log('API test successful:', data);
+            })
+            .catch(error => {
+                console.error('API test failed:', error);
+            });
+    </script>
 </body>
 </html>

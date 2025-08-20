@@ -23,7 +23,7 @@ namespace VibeShootout.Backend.Services
                 
                 var requestBody = new
                 {
-                    model = "llama3.2",
+                    model = "gpt-oss:20b",
                     prompt = fullPrompt,
                     stream = false
                 };

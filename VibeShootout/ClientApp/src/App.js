@@ -26,13 +26,16 @@ function App() {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+    console.log('App component mounting...');
     loadConfig();
     setupSignalRConnection();
   }, []);
 
   const loadConfig = async () => {
     try {
+      console.log('Loading config from API...');
       const configData = await getConfig();
+      console.log('Config loaded:', configData);
       setConfig(configData);
     } catch (error) {
       console.error('Failed to load config:', error);
@@ -40,6 +43,8 @@ function App() {
   };
 
   const setupSignalRConnection = async () => {
+    console.log('Setting up SignalR connection...');
+    
     const newConnection = new HubConnectionBuilder()
       .withUrl('http://localhost:5632/hubs/codereview')
       .withAutomaticReconnect()
@@ -47,29 +52,55 @@ function App() {
       .build();
 
     newConnection.on('CodeReviewCompleted', (result) => {
-      setCodeReviews(prev => [result, ...prev.slice(0, 9)]); // Keep last 10 reviews
+      console.log('Received CodeReviewCompleted:', result);
+      setCodeReviews(prev => {
+        const updated = [result, ...prev.slice(0, 9)];
+        console.log('Updated code reviews:', updated);
+        return updated;
+      });
+    });
+
+    newConnection.onreconnecting(() => {
+      console.log('SignalR: Reconnecting...');
+      setIsConnected(false);
+    });
+
+    newConnection.onreconnected(() => {
+      console.log('SignalR: Reconnected');
+      setIsConnected(true);
+    });
+
+    newConnection.onclose(() => {
+      console.log('SignalR: Connection closed');
+      setIsConnected(false);
     });
 
     try {
+      console.log('Starting SignalR connection...');
       await newConnection.start();
       setConnection(newConnection);
       setIsConnected(true);
-      console.log('SignalR Connected');
+      console.log('SignalR Connected successfully');
     } catch (error) {
       console.error('SignalR Connection Error:', error);
+      setIsConnected(false);
     }
   };
 
   const handleSaveConfig = async (newConfig) => {
     try {
+      console.log('Saving config:', newConfig);
       await saveConfig(newConfig);
       setConfig(newConfig);
       setShowConfigModal(false);
+      console.log('Config saved successfully');
     } catch (error) {
       console.error('Failed to save config:', error);
       alert('Failed to save configuration: ' + error.message);
     }
   };
+
+  console.log('App render - codeReviews count:', codeReviews.length, 'isConnected:', isConnected);
 
   return (
     <AppContainer>
