@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using VibeShootout.Backend.Models;
@@ -65,16 +66,50 @@ namespace VibeShootout.Backend.Services
             }
         }
 
-        private void OnFileChanged(object sender, FileSystemEventArgs e)
+        private async void OnFileChanged(object sender, FileSystemEventArgs e)
         {
             // Ignore .git folder changes and temporary files
-            if (e.FullPath.Contains("\\.git\\") || e.FullPath.EndsWith(".tmp") || e.FullPath.EndsWith("~"))
+            if (e.FullPath.Contains("\\.git\\") || 
+                e.FullPath.EndsWith(".tmp") || 
+                e.FullPath.EndsWith("~") ||
+                e.FullPath.EndsWith(".swp") ||
+                e.FullPath.EndsWith(".swo") ||
+                e.Name?.StartsWith(".") == true ||
+                e.Name?.Contains("node_modules") == true ||
+                e.Name?.Contains("bin") == true ||
+                e.Name?.Contains("obj") == true)
                 return;
 
-            Console.WriteLine($"File change detected: {e.ChangeType} - {e.Name}");
+            // Only process files that might be tracked by git
+            try
+            {
+                var config = await _configService.GetConfigAsync();
+                if (string.IsNullOrEmpty(config.RepositoryPath))
+                    return;
 
-            // Debounce file changes (restart timer)
-            _debounceTimer.Change(2000, Timeout.Infinite);
+                // Check if the file is actually tracked by git
+                var relativePath = Path.GetRelativePath(config.RepositoryPath, e.FullPath);
+                var trackedFiles = await _gitService.GetTrackedFilesAsync(config.RepositoryPath);
+                
+                // Only proceed if this file is tracked or if there are any tracked changes
+                if (trackedFiles.Contains(relativePath.Replace("\\", "/")) || await _gitService.HasTrackedChangesAsync(config.RepositoryPath))
+                {
+                    Console.WriteLine($"Tracked file change detected: {e.ChangeType} - {relativePath}");
+                    
+                    // Debounce file changes (restart timer)
+                    _debounceTimer.Change(2000, Timeout.Infinite);
+                }
+                else
+                {
+                    Console.WriteLine($"Untracked file change ignored: {e.ChangeType} - {relativePath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error checking if file is tracked: {ex.Message}");
+                // If we can't determine if it's tracked, proceed with debounce to be safe
+                _debounceTimer.Change(2000, Timeout.Infinite);
+            }
         }
 
         private void OnFileRenamed(object sender, RenamedEventArgs e)
@@ -91,7 +126,7 @@ namespace VibeShootout.Backend.Services
 
             try
             {
-                Console.WriteLine("Starting code review process...");
+                Console.WriteLine("Starting code review process for tracked files...");
                 
                 var config = await _configService.GetConfigAsync();
                 if (string.IsNullOrEmpty(config.RepositoryPath))
@@ -100,13 +135,24 @@ namespace VibeShootout.Backend.Services
                     return;
                 }
 
+                // Check if there are any tracked file changes
+                if (!await _gitService.HasTrackedChangesAsync(config.RepositoryPath))
+                {
+                    Console.WriteLine("No tracked file changes detected, skipping review");
+                    return;
+                }
+
                 var diff = await _gitService.GetDiffAsync(config.RepositoryPath);
                 
                 if (string.IsNullOrWhiteSpace(diff))
                 {
-                    Console.WriteLine("No changes detected in git diff, skipping review");
+                    Console.WriteLine("No meaningful diff generated for tracked files, skipping review");
                     return;
                 }
+
+                // Get list of modified tracked files for logging
+                var modifiedFiles = await _gitService.GetModifiedTrackedFilesAsync(config.RepositoryPath);
+                Console.WriteLine($"Modified tracked files: {string.Join(", ", modifiedFiles)}");
 
                 // Calculate checksum for the diff
                 var diffChecksum = ChecksumService.CalculateDiffChecksum(diff);
@@ -125,7 +171,7 @@ namespace VibeShootout.Backend.Services
                     return;
                 }
 
-                Console.WriteLine($"Processing new diff (checksum: {diffChecksum[..8]}..., size: {diff.Length} chars)");
+                Console.WriteLine($"Processing new diff for tracked files (checksum: {diffChecksum[..8]}..., size: {diff.Length} chars)");
 
                 // Add to cache before processing to prevent concurrent duplicates
                 _reviewCache.AddReview(diffChecksum);

@@ -68,6 +68,16 @@ const Checksum = styled.span`
   border-radius: 8px;
 `;
 
+const GitBadge = styled.span`
+  color: #16a34a;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: rgba(22, 163, 74, 0.1);
+  padding: 0.15rem 0.4rem;
+  border-radius: 8px;
+  border: 1px solid rgba(22, 163, 74, 0.2);
+`;
+
 const ReviewContent = styled.div`
   padding: 1.5rem;
 `;
@@ -89,6 +99,8 @@ const DiffHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 `;
 
 const DiffStats = styled.span`
@@ -222,6 +234,20 @@ function CodeReviewDisplay({ reviews }) {
     return `+${additions} -${deletions} (${lines.length} lines)`;
   };
 
+  const getDiffType = (diff) => {
+    if (!diff) return '';
+    
+    if (diff.includes('# Staged Changes:') && diff.includes('# Unstaged Changes:')) {
+      return 'Staged + Unstaged';
+    } else if (diff.includes('# Staged Changes:')) {
+      return 'Staged Changes';
+    } else if (diff.includes('# Unstaged Changes:')) {
+      return 'Unstaged Changes';
+    } else {
+      return 'Tracked Files';
+    }
+  };
+
   const isSkipped = (review) => {
     return !review.isSuccess && review.errorMessage && review.errorMessage.includes('Duplicate diff');
   };
@@ -233,7 +259,7 @@ function CodeReviewDisplay({ reviews }) {
           <EmptyStateIcon>??</EmptyStateIcon>
           <EmptyStateText>Waiting for code changes...</EmptyStateText>
           <EmptyStateSubtext>
-            Configure a repository path and start making changes to see AI-powered code reviews here.
+            Configure a repository path and start making changes to tracked files to see AI-powered code reviews here.
           </EmptyStateSubtext>
         </EmptyState>
       </Container>
@@ -245,6 +271,7 @@ function CodeReviewDisplay({ reviews }) {
       {reviews.map((review) => {
         const isError = !review.isSuccess && !isSkipped(review);
         const skipped = isSkipped(review);
+        const diffType = getDiffType(review.diff);
         
         return (
           <ReviewCard key={review.id}>
@@ -262,6 +289,9 @@ function CodeReviewDisplay({ reviews }) {
                 {review.durationMs !== undefined && (
                   <Duration>?? {formatDuration(review.durationMs)}</Duration>
                 )}
+                {diffType && (
+                  <GitBadge title="Git diff type">?? {diffType}</GitBadge>
+                )}
                 {review.diffChecksum && (
                   <Checksum title="Diff checksum for duplicate detection">
                     #{review.diffChecksum.substring(0, 8)}
@@ -276,7 +306,7 @@ function CodeReviewDisplay({ reviews }) {
                   {review.diff && (
                     <DiffSection>
                       <DiffHeader>
-                        ?? Git Diff
+                        ?? Git Diff - Tracked Files Only
                         <DiffStats>{getDiffStats(review.diff)}</DiffStats>
                       </DiffHeader>
                       <DiffContent>{review.diff}</DiffContent>
@@ -292,7 +322,7 @@ function CodeReviewDisplay({ reviews }) {
                   {review.diff && (
                     <DiffSection>
                       <DiffHeader>
-                        ?? Git Diff (Duplicate)
+                        ?? Git Diff - Tracked Files Only (Duplicate)
                         <DiffStats>{getDiffStats(review.diff)}</DiffStats>
                       </DiffHeader>
                       <DiffContent>{review.diff}</DiffContent>
