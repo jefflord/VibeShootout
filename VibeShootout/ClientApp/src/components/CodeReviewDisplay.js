@@ -380,6 +380,8 @@ function CodeReviewDisplay({ reviews }) {
   };
 
   const formatDuration = (durationMs) => {
+    if (durationMs == null || isNaN(durationMs)) return 'N/A';
+    
     if (durationMs < 1000) {
       return `${Math.round(durationMs)}ms`;
     } else if (durationMs < 60000) {
@@ -392,10 +394,12 @@ function CodeReviewDisplay({ reviews }) {
   };
 
   const formatSeconds = (seconds) => {
+    if (seconds == null || isNaN(seconds)) return 'N/A';
     return `${seconds.toFixed(2)}s`;
   };
 
   const formatTokensPerSecond = (tokensPerSecond) => {
+    if (tokensPerSecond == null || isNaN(tokensPerSecond)) return 'N/A';
     return `${tokensPerSecond.toFixed(1)} tok/s`;
   };
 
@@ -425,6 +429,14 @@ function CodeReviewDisplay({ reviews }) {
     return !review.isSuccess && review.errorMessage && review.errorMessage.includes('Duplicate diff');
   };
 
+  // Debug logging to see what data we're receiving
+  if (reviews.length > 0) {
+    console.log('CodeReviewDisplay - First review data:', reviews[0]);
+    if (reviews[0].ollamaMetrics) {
+      console.log('OllamaMetrics:', reviews[0].ollamaMetrics);
+    }
+  }
+
   if (reviews.length === 0) {
     return (
       <Container>
@@ -445,7 +457,10 @@ function CodeReviewDisplay({ reviews }) {
         const isError = !review.isSuccess && !isSkipped(review);
         const skipped = isSkipped(review);
         const diffType = getDiffType(review.diff);
-        const hasMetrics = review.ollamaMetrics;
+        
+        // More robust metrics checking with fallbacks
+        const hasMetrics = review.ollamaMetrics || review.OllamaMetrics;
+        const metrics = hasMetrics;
         
         return (
           <ReviewCard key={review.id}>
@@ -462,7 +477,7 @@ function CodeReviewDisplay({ reviews }) {
                 <Timestamp>{formatTimestamp(review.timestamp)}</Timestamp>
                 
                 <MetricsRow>
-                  {review.durationMs !== undefined && (
+                  {review.durationMs !== undefined && review.durationMs !== null && (
                     <Duration>?? {formatDuration(review.durationMs)}</Duration>
                   )}
                   {diffType && (
@@ -470,17 +485,23 @@ function CodeReviewDisplay({ reviews }) {
                   )}
                 </MetricsRow>
                 
-                {hasMetrics && (
+                {metrics && (
                   <MetricsRow>
-                    <TokenMetric title="Input tokens per second">
-                      ?? {formatTokensPerSecond(hasMetrics.promptTokensPerSecond)}
-                    </TokenMetric>
-                    <TokenMetric title="Output tokens per second">
-                      ?? {formatTokensPerSecond(hasMetrics.outputTokensPerSecond)}
-                    </TokenMetric>
-                    <OllamaMetric title="Total Ollama processing time">
-                      ?? {formatSeconds(hasMetrics.totalDurationSeconds)}
-                    </OllamaMetric>
+                    {metrics.promptTokensPerSecond != null && (
+                      <TokenMetric title="Input tokens per second">
+                        ?? {formatTokensPerSecond(metrics.promptTokensPerSecond)}
+                      </TokenMetric>
+                    )}
+                    {metrics.outputTokensPerSecond != null && (
+                      <TokenMetric title="Output tokens per second">
+                        ?? {formatTokensPerSecond(metrics.outputTokensPerSecond)}
+                      </TokenMetric>
+                    )}
+                    {metrics.totalDurationSeconds != null && (
+                      <OllamaMetric title="Total Ollama processing time">
+                        ?? {formatSeconds(metrics.totalDurationSeconds)}
+                      </OllamaMetric>
+                    )}
                   </MetricsRow>
                 )}
                 
@@ -497,7 +518,7 @@ function CodeReviewDisplay({ reviews }) {
             <ReviewContent>
               {review.isSuccess ? (
                 <>
-                  {hasMetrics && (
+                  {metrics && (
                     <MetricsSection>
                       <MetricsHeader>
                         ?? Ollama Performance Metrics
@@ -505,35 +526,35 @@ function CodeReviewDisplay({ reviews }) {
                       <MetricsGrid>
                         <MetricItem>
                           <MetricLabel>Total Processing Time</MetricLabel>
-                          <MetricValue>{formatSeconds(hasMetrics.totalDurationSeconds)}</MetricValue>
+                          <MetricValue>{formatSeconds(metrics.totalDurationSeconds)}</MetricValue>
                         </MetricItem>
                         <MetricItem>
                           <MetricLabel>Model Load Time</MetricLabel>
-                          <MetricValue>{formatSeconds(hasMetrics.loadDurationSeconds)}</MetricValue>
+                          <MetricValue>{formatSeconds(metrics.loadDurationSeconds)}</MetricValue>
                         </MetricItem>
                         <MetricItem>
                           <MetricLabel>Input Tokens</MetricLabel>
-                          <MetricValue>{hasMetrics.promptEvalCount} tokens</MetricValue>
+                          <MetricValue>{metrics.promptEvalCount || 0} tokens</MetricValue>
                         </MetricItem>
                         <MetricItem>
                           <MetricLabel>Input Speed</MetricLabel>
-                          <MetricValue>{formatTokensPerSecond(hasMetrics.promptTokensPerSecond)}</MetricValue>
+                          <MetricValue>{formatTokensPerSecond(metrics.promptTokensPerSecond)}</MetricValue>
                         </MetricItem>
                         <MetricItem>
                           <MetricLabel>Output Tokens</MetricLabel>
-                          <MetricValue>{hasMetrics.evalCount} tokens</MetricValue>
+                          <MetricValue>{metrics.evalCount || 0} tokens</MetricValue>
                         </MetricItem>
                         <MetricItem>
                           <MetricLabel>Output Speed</MetricLabel>
-                          <MetricValue>{formatTokensPerSecond(hasMetrics.outputTokensPerSecond)}</MetricValue>
+                          <MetricValue>{formatTokensPerSecond(metrics.outputTokensPerSecond)}</MetricValue>
                         </MetricItem>
                         <MetricItem>
                           <MetricLabel>Prompt Processing Time</MetricLabel>
-                          <MetricValue>{formatSeconds(hasMetrics.promptEvalDurationSeconds)}</MetricValue>
+                          <MetricValue>{formatSeconds(metrics.promptEvalDurationSeconds)}</MetricValue>
                         </MetricItem>
                         <MetricItem>
                           <MetricLabel>Generation Time</MetricLabel>
-                          <MetricValue>{formatSeconds(hasMetrics.evalDurationSeconds)}</MetricValue>
+                          <MetricValue>{formatSeconds(metrics.evalDurationSeconds)}</MetricValue>
                         </MetricItem>
                       </MetricsGrid>
                     </MetricsSection>
@@ -584,7 +605,7 @@ function CodeReviewDisplay({ reviews }) {
                         )
                       }}
                     >
-                      {review.review}
+                      {review.review || 'No review content available'}
                     </ReactMarkdown>
                   </ReviewText>
                 </>
@@ -601,12 +622,12 @@ function CodeReviewDisplay({ reviews }) {
                   )}
                   
                   <SkippedMessage>
-                    <strong>Review Skipped:</strong> {review.errorMessage}
+                    <strong>Review Skipped:</strong> {review.errorMessage || 'Unknown reason'}
                   </SkippedMessage>
                 </>
               ) : (
                 <ErrorMessage>
-                  <strong>Error:</strong> {review.errorMessage}
+                  <strong>Error:</strong> {review.errorMessage || 'Unknown error occurred'}
                 </ErrorMessage>
               )}
             </ReviewContent>
