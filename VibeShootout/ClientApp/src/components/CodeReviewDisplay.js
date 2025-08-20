@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const Container = styled.div`
   margin-top: 2rem;
@@ -150,6 +151,7 @@ const ReviewText = styled.div`
     border-radius: 3px;
     font-family: 'Courier New', monospace;
     font-size: 0.9em;
+    color: #1f2937;
   }
   
   pre {
@@ -158,6 +160,7 @@ const ReviewText = styled.div`
     border-radius: 6px;
     overflow-x: auto;
     margin: 1rem 0;
+    border: 1px solid #e5e7eb;
   }
 
   blockquote {
@@ -166,6 +169,96 @@ const ReviewText = styled.div`
     margin: 1rem 0;
     font-style: italic;
     color: #6b7280;
+    background: #f9fafb;
+    padding: 1rem;
+    border-radius: 6px;
+  }
+
+  /* Table styling for markdown tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  thead {
+    background: #f8fafc;
+  }
+
+  th {
+    background: #e2e8f0;
+    color: #374151;
+    font-weight: 600;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 2px solid #d1d5db;
+  }
+
+  td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    color: #374151;
+    vertical-align: top;
+  }
+
+  tbody tr:nth-child(even) {
+    background: #f9fafb;
+  }
+
+  tbody tr:hover {
+    background: #f3f4f6;
+  }
+
+  /* Code blocks within table cells */
+  td code, th code {
+    background: #e5e7eb;
+    padding: 0.15rem 0.3rem;
+    border-radius: 3px;
+    font-size: 0.85em;
+  }
+
+  /* Strikethrough text */
+  del {
+    color: #9ca3af;
+    text-decoration: line-through;
+  }
+
+  /* Task lists */
+  input[type="checkbox"] {
+    margin-right: 0.5rem;
+  }
+
+  /* Horizontal rule */
+  hr {
+    border: none;
+    border-top: 2px solid #e5e7eb;
+    margin: 2rem 0;
+  }
+
+  /* Links */
+  a {
+    color: #3b82f6;
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  /* Strong/bold text */
+  strong {
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  /* Emphasis/italic text */
+  em {
+    font-style: italic;
+    color: #4b5563;
   }
 `;
 
@@ -314,7 +407,42 @@ function CodeReviewDisplay({ reviews }) {
                   )}
                   
                   <ReviewText>
-                    <ReactMarkdown>{review.review}</ReactMarkdown>
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        // Custom table rendering with proper styling
+                        table: ({ children }) => (
+                          <table style={{ width: '100%', borderCollapse: 'collapse', margin: '1rem 0' }}>
+                            {children}
+                          </table>
+                        ),
+                        // Ensure code blocks in tables render properly
+                        code: ({ inline, children, ...props }) => (
+                          inline ? (
+                            <code style={{ 
+                              background: '#f3f4f6', 
+                              padding: '0.2rem 0.4rem', 
+                              borderRadius: '3px',
+                              fontSize: '0.9em'
+                            }} {...props}>
+                              {children}
+                            </code>
+                          ) : (
+                            <pre style={{
+                              background: '#f3f4f6',
+                              padding: '1rem',
+                              borderRadius: '6px',
+                              overflow: 'auto',
+                              border: '1px solid #e5e7eb'
+                            }}>
+                              <code {...props}>{children}</code>
+                            </pre>
+                          )
+                        )
+                      }}
+                    >
+                      {review.review}
+                    </ReactMarkdown>
                   </ReviewText>
                 </>
               ) : skipped ? (
