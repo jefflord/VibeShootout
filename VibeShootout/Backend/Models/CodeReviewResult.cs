@@ -11,5 +11,14 @@ namespace VibeShootout.Backend.Models
         public string Review { get; set; } = "";
         public bool IsSuccess { get; set; }
         public string? ErrorMessage { get; set; }
+        
+        // New timing properties
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+        public TimeSpan Duration => EndTime - StartTime;
+        public double DurationMs => Duration.TotalMilliseconds;
+        
+        // New checksum property for duplicate detection
+        public string DiffChecksum { get; set; } = "";
     }
 }

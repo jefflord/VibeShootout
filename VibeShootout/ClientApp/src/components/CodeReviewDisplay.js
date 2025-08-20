@@ -21,8 +21,8 @@ const ReviewCard = styled.div`
 `;
 
 const ReviewHeader = styled.div`
-  background: ${props => props.isError ? '#fee2e2' : '#f0f9ff'};
-  border-bottom: 1px solid ${props => props.isError ? '#fecaca' : '#e0f2fe'};
+  background: ${props => props.isError ? '#fee2e2' : props.isSkipped ? '#fef3c7' : '#f0f9ff'};
+  border-bottom: 1px solid ${props => props.isError ? '#fecaca' : props.isSkipped ? '#fde68a' : '#e0f2fe'};
   padding: 1rem 1.5rem;
   display: flex;
   justify-content: space-between;
@@ -33,14 +33,39 @@ const ReviewHeader = styled.div`
 
 const ReviewTitle = styled.h3`
   margin: 0;
-  color: ${props => props.isError ? '#dc2626' : '#0369a1'};
+  color: ${props => props.isError ? '#dc2626' : props.isSkipped ? '#d97706' : '#0369a1'};
   font-size: 1.1rem;
   font-weight: 600;
+`;
+
+const ReviewMeta = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
 `;
 
 const Timestamp = styled.span`
   color: #6b7280;
   font-size: 0.85rem;
+`;
+
+const Duration = styled.span`
+  color: #059669;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: rgba(5, 150, 105, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+`;
+
+const Checksum = styled.span`
+  color: #7c3aed;
+  font-size: 0.75rem;
+  font-family: monospace;
+  background: rgba(124, 58, 237, 0.1);
+  padding: 0.15rem 0.4rem;
+  border-radius: 8px;
 `;
 
 const ReviewContent = styled.div`
@@ -61,6 +86,15 @@ const DiffHeader = styled.div`
   font-weight: 600;
   font-size: 0.9rem;
   color: #475569;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const DiffStats = styled.span`
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: normal;
 `;
 
 const DiffContent = styled.pre`
@@ -131,6 +165,15 @@ const ErrorMessage = styled.div`
   border: 1px solid #fecaca;
 `;
 
+const SkippedMessage = styled.div`
+  color: #d97706;
+  background: #fef3c7;
+  padding: 1rem;
+  border-radius: 6px;
+  border: 1px solid #fde68a;
+  font-style: italic;
+`;
+
 const EmptyState = styled.div`
   text-align: center;
   padding: 4rem 2rem;
@@ -159,6 +202,30 @@ function CodeReviewDisplay({ reviews }) {
     return new Date(timestamp).toLocaleString();
   };
 
+  const formatDuration = (durationMs) => {
+    if (durationMs < 1000) {
+      return `${Math.round(durationMs)}ms`;
+    } else if (durationMs < 60000) {
+      return `${(durationMs / 1000).toFixed(1)}s`;
+    } else {
+      const minutes = Math.floor(durationMs / 60000);
+      const seconds = ((durationMs % 60000) / 1000).toFixed(0);
+      return `${minutes}m ${seconds}s`;
+    }
+  };
+
+  const getDiffStats = (diff) => {
+    if (!diff) return '';
+    const lines = diff.split('\n');
+    const additions = lines.filter(line => line.startsWith('+')).length;
+    const deletions = lines.filter(line => line.startsWith('-')).length;
+    return `+${additions} -${deletions} (${lines.length} lines)`;
+  };
+
+  const isSkipped = (review) => {
+    return !review.isSuccess && review.errorMessage && review.errorMessage.includes('Duplicate diff');
+  };
+
   if (reviews.length === 0) {
     return (
       <Container>
@@ -175,37 +242,76 @@ function CodeReviewDisplay({ reviews }) {
 
   return (
     <Container>
-      {reviews.map((review) => (
-        <ReviewCard key={review.id}>
-          <ReviewHeader isError={!review.isSuccess}>
-            <ReviewTitle isError={!review.isSuccess}>
-              {review.isSuccess ? '? Code Review Completed' : '? Review Failed'}
-            </ReviewTitle>
-            <Timestamp>{formatTimestamp(review.timestamp)}</Timestamp>
-          </ReviewHeader>
-          
-          <ReviewContent>
-            {review.isSuccess ? (
-              <>
-                {review.diff && (
-                  <DiffSection>
-                    <DiffHeader>?? Git Diff</DiffHeader>
-                    <DiffContent>{review.diff}</DiffContent>
-                  </DiffSection>
+      {reviews.map((review) => {
+        const isError = !review.isSuccess && !isSkipped(review);
+        const skipped = isSkipped(review);
+        
+        return (
+          <ReviewCard key={review.id}>
+            <ReviewHeader isError={isError} isSkipped={skipped}>
+              <ReviewTitle isError={isError} isSkipped={skipped}>
+                {review.isSuccess 
+                  ? '? Code Review Completed' 
+                  : skipped 
+                    ? '?? Review Skipped' 
+                    : '? Review Failed'}
+              </ReviewTitle>
+              
+              <ReviewMeta>
+                <Timestamp>{formatTimestamp(review.timestamp)}</Timestamp>
+                {review.durationMs !== undefined && (
+                  <Duration>?? {formatDuration(review.durationMs)}</Duration>
                 )}
-                
-                <ReviewText>
-                  <ReactMarkdown>{review.review}</ReactMarkdown>
-                </ReviewText>
-              </>
-            ) : (
-              <ErrorMessage>
-                <strong>Error:</strong> {review.errorMessage}
-              </ErrorMessage>
-            )}
-          </ReviewContent>
-        </ReviewCard>
-      ))}
+                {review.diffChecksum && (
+                  <Checksum title="Diff checksum for duplicate detection">
+                    #{review.diffChecksum.substring(0, 8)}
+                  </Checksum>
+                )}
+              </ReviewMeta>
+            </ReviewHeader>
+            
+            <ReviewContent>
+              {review.isSuccess ? (
+                <>
+                  {review.diff && (
+                    <DiffSection>
+                      <DiffHeader>
+                        ?? Git Diff
+                        <DiffStats>{getDiffStats(review.diff)}</DiffStats>
+                      </DiffHeader>
+                      <DiffContent>{review.diff}</DiffContent>
+                    </DiffSection>
+                  )}
+                  
+                  <ReviewText>
+                    <ReactMarkdown>{review.review}</ReactMarkdown>
+                  </ReviewText>
+                </>
+              ) : skipped ? (
+                <>
+                  {review.diff && (
+                    <DiffSection>
+                      <DiffHeader>
+                        ?? Git Diff (Duplicate)
+                        <DiffStats>{getDiffStats(review.diff)}</DiffStats>
+                      </DiffHeader>
+                      <DiffContent>{review.diff}</DiffContent>
+                    </DiffSection>
+                  )}
+                  
+                  <SkippedMessage>
+                    <strong>Review Skipped:</strong> {review.errorMessage}
+                  </SkippedMessage>
+                </>
+              ) : (
+                <ErrorMessage>
+                  <strong>Error:</strong> {review.errorMessage}
+                </ErrorMessage>
+              )}
+            </ReviewContent>
+          </ReviewCard>
+        );
+      })}
     </Container>
   );
 }

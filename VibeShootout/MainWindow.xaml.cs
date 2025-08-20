@@ -35,7 +35,7 @@ namespace VibeShootout
                 Console.WriteLine("Creating OllamaService...");
                 var ollamaService = new OllamaService(httpClient);
                 
-                Console.WriteLine("Creating FileWatcherService...");
+                Console.WriteLine("Creating FileWatcherService with review cache...");
                 _fileWatcherService = new FileWatcherService(gitService, ollamaService, configService);
                 
                 Console.WriteLine("Creating WebServer...");

@@ -26,7 +26,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Backend\" />
     <Folder Include="ClientApp\src\" />
   </ItemGroup>
 
