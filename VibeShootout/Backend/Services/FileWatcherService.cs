@@ -11,7 +11,7 @@ namespace VibeShootout.Backend.Services
     {
         private FileSystemWatcher? _watcher;
         private readonly GitService _gitService;
-        private readonly OllamaService _ollamaService;
+        private readonly AIService _aiService;
         private readonly ConfigService _configService;
         private readonly ReviewCacheService _reviewCache;
         private readonly Timer _debounceTimer;
@@ -19,10 +19,10 @@ namespace VibeShootout.Backend.Services
 
         public event Action<CodeReviewResult>? CodeReviewCompleted;
 
-        public FileWatcherService(GitService gitService, OllamaService ollamaService, ConfigService configService)
+        public FileWatcherService(GitService gitService, AIService aiService, ConfigService configService)
         {
             _gitService = gitService;
-            _ollamaService = ollamaService;
+            _aiService = aiService;
             _configService = configService;
             _reviewCache = new ReviewCacheService();
             _debounceTimer = new Timer(OnDebounceTimerElapsed, null, Timeout.Infinite, Timeout.Infinite);
@@ -171,29 +171,38 @@ namespace VibeShootout.Backend.Services
                     return;
                 }
 
-                Console.WriteLine($"Processing new diff for tracked files (checksum: {diffChecksum[..8]}..., size: {diff.Length} chars)");
+                Console.WriteLine($"Processing new diff for tracked files using {config.Provider} (checksum: {diffChecksum[..8]}..., size: {diff.Length} chars)");
 
                 // Add to cache before processing to prevent concurrent duplicates
                 _reviewCache.AddReview(diffChecksum);
 
-                // Use the new method that returns metrics
-                var ollamaResponse = await _ollamaService.GetCodeReviewWithMetricsAsync(config.OllamaUrl, config.ReviewPrompt, diff);
+                // Use the new method that works with any AI provider
+                var aiResponse = await _aiService.GetCodeReviewWithMetricsAsync(config, config.ReviewPrompt, diff);
 
                 result.EndTime = DateTime.UtcNow;
                 result.Diff = diff;
-                result.Review = ollamaResponse.Response;
-                result.OllamaMetrics = ollamaResponse.Metrics;
+                result.Review = aiResponse.Response;
+                result.OllamaMetrics = aiResponse.Metrics; // Keep this for backward compatibility
+                result.OpenAIUsage = aiResponse.Usage; // Add OpenAI usage tracking
                 result.IsSuccess = true;
 
-                // Log performance metrics
-                if (ollamaResponse.Metrics != null)
+                // Log performance metrics based on provider
+                if (config.Provider == AIProvider.Ollama && aiResponse.Metrics != null)
                 {
-                    var metrics = ollamaResponse.Metrics;
+                    var metrics = aiResponse.Metrics;
                     Console.WriteLine($"Code review completed in {result.DurationMs:F0}ms total");
                     Console.WriteLine($"Ollama metrics: Total: {metrics.TotalDurationSeconds:F2}s, " +
                                     $"Load: {metrics.LoadDurationSeconds:F2}s, " +
                                     $"Prompt: {metrics.PromptTokensPerSecond:F1} tok/s ({metrics.PromptEvalCount} tokens), " +
                                     $"Output: {metrics.OutputTokensPerSecond:F1} tok/s ({metrics.EvalCount} tokens)");
+                }
+                else if (config.Provider == AIProvider.OpenAI && aiResponse.Usage != null)
+                {
+                    var usage = aiResponse.Usage;
+                    Console.WriteLine($"Code review completed in {result.DurationMs:F0}ms total");
+                    Console.WriteLine($"OpenAI usage: Prompt: {usage.PromptTokens} tokens, " +
+                                    $"Completion: {usage.CompletionTokens} tokens, " +
+                                    $"Total: {usage.TotalTokens} tokens");
                 }
                 else
                 {

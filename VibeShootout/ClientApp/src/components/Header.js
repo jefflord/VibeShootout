@@ -46,6 +46,19 @@ const StatusDot = styled.div`
   background: ${props => props.connected ? '#4ade80' : '#ef4444'};
 `;
 
+const ProviderBadge = styled.div`
+  background: ${props => props.provider === 'Ollama' ? 'rgba(124, 45, 18, 0.3)' : 'rgba(5, 150, 105, 0.3)'};
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid ${props => props.provider === 'Ollama' ? 'rgba(124, 45, 18, 0.5)' : 'rgba(5, 150, 105, 0.5)'};
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+`;
+
 const RepositoryPath = styled.div`
   color: rgba(255, 255, 255, 0.8);
   font-size: 0.8rem;
@@ -79,7 +92,9 @@ const ConfigButton = styled.button`
   }
 `;
 
-function Header({ onEditConfig, isConnected, repositoryPath }) {
+function Header({ onEditConfig, isConnected, repositoryPath, config }) {
+  const provider = config?.provider || 'Unknown';
+  
   return (
     <HeaderContainer>
       <Title>VibeShootout AI Code Reviewer</Title>
@@ -89,6 +104,12 @@ function Header({ onEditConfig, isConnected, repositoryPath }) {
           <StatusDot connected={isConnected} />
           {isConnected ? 'Connected' : 'Disconnected'}
         </StatusIndicator>
+        
+        {provider !== 'Unknown' && (
+          <ProviderBadge provider={provider}>
+            {provider === 'Ollama' ? '??' : '??'} {provider}
+          </ProviderBadge>
+        )}
         
         {repositoryPath && (
           <RepositoryPath title={repositoryPath}>

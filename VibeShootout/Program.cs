@@ -24,6 +24,7 @@ namespace VibeShootout
                 app.Run();
 
                 var mainWindow = new MainWindow();
+                var xmainWindowxxx = new MainWindow();
 
                 app.MainWindow = mainWindow;
                 mainWindow.Show();

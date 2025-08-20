@@ -87,6 +87,26 @@ const TokenMetric = styled.span`
   font-family: monospace;
 `;
 
+const OpenAIMetric = styled.span`
+  color: #059669;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: rgba(5, 150, 105, 0.1);
+  padding: 0.15rem 0.4rem;
+  border-radius: 8px;
+  font-family: monospace;
+`;
+
+const ProviderBadge = styled.span`
+  color: ${props => props.provider === 'Ollama' ? '#7c2d12' : '#059669'};
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: ${props => props.provider === 'Ollama' ? 'rgba(124, 45, 18, 0.1)' : 'rgba(5, 150, 105, 0.1)'};
+  padding: 0.15rem 0.4rem;
+  border-radius: 8px;
+  border: 1px solid ${props => props.provider === 'Ollama' ? 'rgba(124, 45, 18, 0.2)' : 'rgba(5, 150, 105, 0.2)'};
+`;
+
 const Checksum = styled.span`
   color: #7c3aed;
   font-size: 0.75rem;
@@ -119,11 +139,11 @@ const MetricsSection = styled.div`
 `;
 
 const MetricsHeader = styled.div`
-  background: #e2e8f0;
+  background: ${props => props.provider === 'OpenAI' ? '#dcfce7' : '#e2e8f0'};
   padding: 0.5rem 1rem;
   font-weight: 600;
   font-size: 0.9rem;
-  color: #475569;
+  color: ${props => props.provider === 'OpenAI' ? '#166534' : '#475569'};
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -246,7 +266,6 @@ const ReviewText = styled.div`
     border-radius: 6px;
   }
 
-  /* Table styling for markdown tables */
   table {
     width: 100%;
     border-collapse: collapse;
@@ -285,7 +304,6 @@ const ReviewText = styled.div`
     background: #f3f4f6;
   }
 
-  /* Code blocks within table cells */
   td code, th code {
     background: #e5e7eb;
     padding: 0.15rem 0.3rem;
@@ -293,25 +311,21 @@ const ReviewText = styled.div`
     font-size: 0.85em;
   }
 
-  /* Strikethrough text */
   del {
     color: #9ca3af;
     text-decoration: line-through;
   }
 
-  /* Task lists */
   input[type="checkbox"] {
     margin-right: 0.5rem;
   }
 
-  /* Horizontal rule */
   hr {
     border: none;
     border-top: 2px solid #e5e7eb;
     margin: 2rem 0;
   }
 
-  /* Links */
   a {
     color: #3b82f6;
     text-decoration: none;
@@ -321,13 +335,11 @@ const ReviewText = styled.div`
     text-decoration: underline;
   }
 
-  /* Strong/bold text */
   strong {
     font-weight: 600;
     color: #1f2937;
   }
 
-  /* Emphasis/italic text */
   em {
     font-style: italic;
     color: #4b5563;
@@ -429,13 +441,15 @@ function CodeReviewDisplay({ reviews }) {
     return !review.isSuccess && review.errorMessage && review.errorMessage.includes('Duplicate diff');
   };
 
-  // Debug logging to see what data we're receiving
-  if (reviews.length > 0) {
-    console.log('CodeReviewDisplay - First review data:', reviews[0]);
-    if (reviews[0].ollamaMetrics) {
-      console.log('OllamaMetrics:', reviews[0].ollamaMetrics);
+  const getProviderFromReview = (review) => {
+    // Determine provider based on available metrics
+    if (review.openAIUsage || review.OpenAIUsage) {
+      return 'OpenAI';
+    } else if (review.ollamaMetrics || review.OllamaMetrics) {
+      return 'Ollama';
     }
-  }
+    return 'Unknown';
+  };
 
   if (reviews.length === 0) {
     return (
@@ -457,10 +471,11 @@ function CodeReviewDisplay({ reviews }) {
         const isError = !review.isSuccess && !isSkipped(review);
         const skipped = isSkipped(review);
         const diffType = getDiffType(review.diff);
+        const provider = getProviderFromReview(review);
         
-        // More robust metrics checking with fallbacks
-        const hasMetrics = review.ollamaMetrics || review.OllamaMetrics;
-        const metrics = hasMetrics;
+        // Get metrics based on provider
+        const ollamaMetrics = review.ollamaMetrics || review.OllamaMetrics;
+        const openAIUsage = review.openAIUsage || review.OpenAIUsage;
         
         return (
           <ReviewCard key={review.id}>
@@ -480,28 +495,48 @@ function CodeReviewDisplay({ reviews }) {
                   {review.durationMs !== undefined && review.durationMs !== null && (
                     <Duration>?? {formatDuration(review.durationMs)}</Duration>
                   )}
+                  {provider !== 'Unknown' && (
+                    <ProviderBadge provider={provider}>
+                      {provider === 'Ollama' ? '??' : '??'} {provider}
+                    </ProviderBadge>
+                  )}
                   {diffType && (
                     <GitBadge title="Git diff type">?? {diffType}</GitBadge>
                   )}
                 </MetricsRow>
                 
-                {metrics && (
+                {/* Show relevant metrics based on provider */}
+                {provider === 'Ollama' && ollamaMetrics && (
                   <MetricsRow>
-                    {metrics.promptTokensPerSecond != null && (
+                    {ollamaMetrics.promptTokensPerSecond != null && (
                       <TokenMetric title="Input tokens per second">
-                        ?? {formatTokensPerSecond(metrics.promptTokensPerSecond)}
+                        ?? {formatTokensPerSecond(ollamaMetrics.promptTokensPerSecond)}
                       </TokenMetric>
                     )}
-                    {metrics.outputTokensPerSecond != null && (
+                    {ollamaMetrics.outputTokensPerSecond != null && (
                       <TokenMetric title="Output tokens per second">
-                        ?? {formatTokensPerSecond(metrics.outputTokensPerSecond)}
+                        ?? {formatTokensPerSecond(ollamaMetrics.outputTokensPerSecond)}
                       </TokenMetric>
                     )}
-                    {metrics.totalDurationSeconds != null && (
+                    {ollamaMetrics.totalDurationSeconds != null && (
                       <OllamaMetric title="Total Ollama processing time">
-                        ?? {formatSeconds(metrics.totalDurationSeconds)}
+                        ? {formatSeconds(ollamaMetrics.totalDurationSeconds)}
                       </OllamaMetric>
                     )}
+                  </MetricsRow>
+                )}
+                
+                {provider === 'OpenAI' && openAIUsage && (
+                  <MetricsRow>
+                    <OpenAIMetric title="Prompt tokens">
+                      ?? {openAIUsage.promptTokens} tokens
+                    </OpenAIMetric>
+                    <OpenAIMetric title="Completion tokens">
+                      ?? {openAIUsage.completionTokens} tokens
+                    </OpenAIMetric>
+                    <OpenAIMetric title="Total tokens">
+                      ?? {openAIUsage.totalTokens} total
+                    </OpenAIMetric>
                   </MetricsRow>
                 )}
                 
@@ -518,43 +553,74 @@ function CodeReviewDisplay({ reviews }) {
             <ReviewContent>
               {review.isSuccess ? (
                 <>
-                  {metrics && (
+                  {/* Show provider-specific metrics */}
+                  {provider === 'Ollama' && ollamaMetrics && (
                     <MetricsSection>
-                      <MetricsHeader>
+                      <MetricsHeader provider="Ollama">
                         ?? Ollama Performance Metrics
                       </MetricsHeader>
                       <MetricsGrid>
                         <MetricItem>
                           <MetricLabel>Total Processing Time</MetricLabel>
-                          <MetricValue>{formatSeconds(metrics.totalDurationSeconds)}</MetricValue>
+                          <MetricValue>{formatSeconds(ollamaMetrics.totalDurationSeconds)}</MetricValue>
                         </MetricItem>
                         <MetricItem>
                           <MetricLabel>Model Load Time</MetricLabel>
-                          <MetricValue>{formatSeconds(metrics.loadDurationSeconds)}</MetricValue>
+                          <MetricValue>{formatSeconds(ollamaMetrics.loadDurationSeconds)}</MetricValue>
                         </MetricItem>
                         <MetricItem>
                           <MetricLabel>Input Tokens</MetricLabel>
-                          <MetricValue>{metrics.promptEvalCount || 0} tokens</MetricValue>
+                          <MetricValue>{ollamaMetrics.promptEvalCount || 0} tokens</MetricValue>
                         </MetricItem>
                         <MetricItem>
                           <MetricLabel>Input Speed</MetricLabel>
-                          <MetricValue>{formatTokensPerSecond(metrics.promptTokensPerSecond)}</MetricValue>
+                          <MetricValue>{formatTokensPerSecond(ollamaMetrics.promptTokensPerSecond)}</MetricValue>
                         </MetricItem>
                         <MetricItem>
                           <MetricLabel>Output Tokens</MetricLabel>
-                          <MetricValue>{metrics.evalCount || 0} tokens</MetricValue>
+                          <MetricValue>{ollamaMetrics.evalCount || 0} tokens</MetricValue>
                         </MetricItem>
                         <MetricItem>
                           <MetricLabel>Output Speed</MetricLabel>
-                          <MetricValue>{formatTokensPerSecond(metrics.outputTokensPerSecond)}</MetricValue>
+                          <MetricValue>{formatTokensPerSecond(ollamaMetrics.outputTokensPerSecond)}</MetricValue>
                         </MetricItem>
                         <MetricItem>
                           <MetricLabel>Prompt Processing Time</MetricLabel>
-                          <MetricValue>{formatSeconds(metrics.promptEvalDurationSeconds)}</MetricValue>
+                          <MetricValue>{formatSeconds(ollamaMetrics.promptEvalDurationSeconds)}</MetricValue>
                         </MetricItem>
                         <MetricItem>
                           <MetricLabel>Generation Time</MetricLabel>
-                          <MetricValue>{formatSeconds(metrics.evalDurationSeconds)}</MetricValue>
+                          <MetricValue>{formatSeconds(ollamaMetrics.evalDurationSeconds)}</MetricValue>
+                        </MetricItem>
+                      </MetricsGrid>
+                    </MetricsSection>
+                  )}
+
+                  {provider === 'OpenAI' && openAIUsage && (
+                    <MetricsSection>
+                      <MetricsHeader provider="OpenAI">
+                        ?? OpenAI Usage Statistics
+                      </MetricsHeader>
+                      <MetricsGrid>
+                        <MetricItem>
+                          <MetricLabel>Prompt Tokens</MetricLabel>
+                          <MetricValue>{openAIUsage.promptTokens} tokens</MetricValue>
+                        </MetricItem>
+                        <MetricItem>
+                          <MetricLabel>Completion Tokens</MetricLabel>
+                          <MetricValue>{openAIUsage.completionTokens} tokens</MetricValue>
+                        </MetricItem>
+                        <MetricItem>
+                          <MetricLabel>Total Tokens</MetricLabel>
+                          <MetricValue>{openAIUsage.totalTokens} tokens</MetricValue>
+                        </MetricItem>
+                        <MetricItem>
+                          <MetricLabel>Efficiency Ratio</MetricLabel>
+                          <MetricValue>
+                            {openAIUsage.totalTokens > 0 
+                              ? `${((openAIUsage.completionTokens / openAIUsage.totalTokens) * 100).toFixed(1)}%` 
+                              : 'N/A'} output
+                          </MetricValue>
                         </MetricItem>
                       </MetricsGrid>
                     </MetricsSection>
@@ -574,13 +640,11 @@ function CodeReviewDisplay({ reviews }) {
                     <ReactMarkdown 
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        // Custom table rendering with proper styling
                         table: ({ children }) => (
                           <table style={{ width: '100%', borderCollapse: 'collapse', margin: '1rem 0' }}>
                             {children}
                           </table>
                         ),
-                        // Ensure code blocks in tables render properly
                         code: ({ inline, children, ...props }) => (
                           inline ? (
                             <code style={{ 

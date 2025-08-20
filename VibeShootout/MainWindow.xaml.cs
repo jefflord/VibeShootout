@@ -32,11 +32,11 @@ namespace VibeShootout
                 Console.WriteLine("Creating HttpClient...");
                 var httpClient = new HttpClient();
                 
-                Console.WriteLine("Creating OllamaService...");
-                var ollamaService = new OllamaService(httpClient);
+                Console.WriteLine("Creating AIService...");
+                var aiService = new AIService(httpClient);
                 
                 Console.WriteLine("Creating FileWatcherService with review cache...");
-                _fileWatcherService = new FileWatcherService(gitService, ollamaService, configService);
+                _fileWatcherService = new FileWatcherService(gitService, aiService, configService);
                 
                 Console.WriteLine("Creating WebServer...");
                 _webServer = new WebServer(configService, _fileWatcherService);

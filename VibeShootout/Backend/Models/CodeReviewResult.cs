@@ -22,7 +22,8 @@ namespace VibeShootout.Backend.Models
         // Checksum property for duplicate detection
         public string DiffChecksum { get; set; } = "";
         
-        // Ollama performance metrics
+        // AI performance metrics - keeping both for backward compatibility
         public OllamaMetrics? OllamaMetrics { get; set; }
+        public OpenAIUsage? OpenAIUsage { get; set; }
     }
 }

@@ -108,6 +108,7 @@ function App() {
         onEditConfig={() => setShowConfigModal(true)}
         isConnected={isConnected}
         repositoryPath={config?.repositoryPath}
+        config={config}
       />
       
       <MainContent>

@@ -20,7 +20,7 @@ const ModalContent = styled.div`
   border-radius: 12px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   width: 100%;
-  max-width: 600px;
+  max-width: 700px;
   max-height: 90vh;
   overflow-y: auto;
 `;
@@ -81,6 +81,22 @@ const Input = styled.input`
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+`;
+
+const Select = styled.select`
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+  background: white;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   
   &:focus {
@@ -181,17 +197,44 @@ const FilePickerButton = styled.button`
   }
 `;
 
+const SectionTitle = styled.h3`
+  margin: 0 0 1rem 0;
+  color: #1f2937;
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+`;
+
+const ProviderSection = styled.div`
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+`;
+
 function ConfigModal({ config, onSave, onClose }) {
   const [formData, setFormData] = useState({
-    ollamaUrl: '',
-    reviewPrompt: '',
+    provider: 'Ollama',
+    ollamaUrl: 'http://10.0.0.90:11434',
+    ollamaModel: 'gpt-oss:20b',
+    openAIUrl: 'https://api.openai.com',
+    openAIApiKey: '',
+    openAIModel: 'gpt-4',
+    reviewPrompt: 'Below is git diff, please create a code review using this information',
     repositoryPath: ''
   });
 
   useEffect(() => {
     if (config) {
       setFormData({
+        provider: config.provider || 'Ollama',
         ollamaUrl: config.ollamaUrl || 'http://10.0.0.90:11434',
+        ollamaModel: config.ollamaModel || 'gpt-oss:20b',
+        openAIUrl: config.openAIUrl || 'https://api.openai.com',
+        openAIApiKey: config.openAIApiKey || '',
+        openAIModel: config.openAIModel || 'gpt-4',
         reviewPrompt: config.reviewPrompt || 'Below is git diff, please create a code review using this information',
         repositoryPath: config.repositoryPath || ''
       });
@@ -218,6 +261,8 @@ function ConfigModal({ config, onSave, onClose }) {
       handleChange('repositoryPath', path);
     }
   };
+
+  const currentProvider = formData.provider;
 
   return (
     <ModalOverlay onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -247,19 +292,104 @@ function ConfigModal({ config, onSave, onClose }) {
             </FormGroup>
 
             <FormGroup>
-              <Label htmlFor="ollamaUrl">Ollama Server URL</Label>
-              <Input
-                id="ollamaUrl"
-                type="url"
-                value={formData.ollamaUrl}
-                onChange={(e) => handleChange('ollamaUrl', e.target.value)}
-                placeholder="http://10.0.0.90:11434"
+              <Label htmlFor="provider">AI Provider</Label>
+              <Select
+                id="provider"
+                value={formData.provider}
+                onChange={(e) => handleChange('provider', e.target.value)}
                 required
-              />
+              >
+                <option value="Ollama">Ollama (Local)</option>
+                <option value="OpenAI">OpenAI (API)</option>
+              </Select>
               <HelperText>
-                URL of your Ollama server. Default: http://10.0.0.90:11434
+                Choose between local Ollama server or OpenAI API service.
               </HelperText>
             </FormGroup>
+
+            {currentProvider === 'Ollama' && (
+              <ProviderSection>
+                <SectionTitle>Ollama Configuration</SectionTitle>
+                <FormGroup>
+                  <Label htmlFor="ollamaUrl">Ollama Server URL</Label>
+                  <Input
+                    id="ollamaUrl"
+                    type="url"
+                    value={formData.ollamaUrl}
+                    onChange={(e) => handleChange('ollamaUrl', e.target.value)}
+                    placeholder="http://10.0.0.90:11434"
+                    required
+                  />
+                  <HelperText>
+                    URL of your Ollama server. Default: http://10.0.0.90:11434
+                  </HelperText>
+                </FormGroup>
+
+                <FormGroup>
+                  <Label htmlFor="ollamaModel">Model</Label>
+                  <Input
+                    id="ollamaModel"
+                    type="text"
+                    value={formData.ollamaModel}
+                    onChange={(e) => handleChange('ollamaModel', e.target.value)}
+                    placeholder="gpt-oss:20b"
+                    required
+                  />
+                  <HelperText>
+                    Name of the Ollama model to use for code reviews.
+                  </HelperText>
+                </FormGroup>
+              </ProviderSection>
+            )}
+
+            {currentProvider === 'OpenAI' && (
+              <ProviderSection>
+                <SectionTitle>OpenAI Configuration</SectionTitle>
+                <FormGroup>
+                  <Label htmlFor="openAIUrl">OpenAI-Compatible Endpoint URL</Label>
+                  <Input
+                    id="openAIUrl"
+                    type="url"
+                    value={formData.openAIUrl}
+                    onChange={(e) => handleChange('openAIUrl', e.target.value)}
+                    placeholder="https://api.openai.com"
+                    required
+                  />
+                  <HelperText>
+                    Base URL for OpenAI-compatible API. For OpenAI: https://api.openai.com. For other providers, use their base URL.
+                  </HelperText>
+                </FormGroup>
+
+                <FormGroup>
+                  <Label htmlFor="openAIApiKey">API Key (Optional)</Label>
+                  <Input
+                    id="openAIApiKey"
+                    type="password"
+                    value={formData.openAIApiKey}
+                    onChange={(e) => handleChange('openAIApiKey', e.target.value)}
+                    placeholder="sk-... (leave empty if not required)"
+                  />
+                  <HelperText>
+                    Your OpenAI API key or API key for the OpenAI-compatible service. Leave empty if the endpoint doesn't require authentication.
+                  </HelperText>
+                </FormGroup>
+
+                <FormGroup>
+                  <Label htmlFor="openAIModel">Model</Label>
+                  <Input
+                    id="openAIModel"
+                    type="text"
+                    value={formData.openAIModel}
+                    onChange={(e) => handleChange('openAIModel', e.target.value)}
+                    placeholder="gpt-4"
+                    required
+                  />
+                  <HelperText>
+                    Model name to use (e.g., gpt-4, gpt-3.5-turbo, or custom model name for other providers).
+                  </HelperText>
+                </FormGroup>
+              </ProviderSection>
+            )}
 
             <FormGroup>
               <Label htmlFor="reviewPrompt">Code Review Prompt</Label>
