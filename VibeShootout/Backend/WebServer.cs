@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.SignalR;
 using VibeShootout.Backend.Hubs;
 using VibeShootout.Backend.Models;
 using VibeShootout.Backend.Services;
+using Microsoft.AspNetCore.StaticFiles;
 
 namespace VibeShootout.Backend
 {
@@ -79,6 +80,13 @@ namespace VibeShootout.Backend
             
             PhysicalFileProvider? reactFileProvider = null;
             
+            // Create content type provider with proper UTF-8 encoding
+            var contentTypeProvider = new FileExtensionContentTypeProvider();
+            contentTypeProvider.Mappings[".js"] = "application/javascript; charset=utf-8";
+            contentTypeProvider.Mappings[".html"] = "text/html; charset=utf-8";
+            contentTypeProvider.Mappings[".css"] = "text/css; charset=utf-8";
+            contentTypeProvider.Mappings[".json"] = "application/json; charset=utf-8";
+            
             if (Directory.Exists(clientAppPath))
             {
                 Console.WriteLine("Found React build folder, serving React app");
@@ -95,10 +103,26 @@ namespace VibeShootout.Backend
                 _app.UseStaticFiles(new StaticFileOptions
                 {
                     FileProvider = reactFileProvider,
-                    RequestPath = "" // Serve from root
+                    RequestPath = "", // Serve from root
+                    ContentTypeProvider = contentTypeProvider,
+                    OnPrepareResponse = ctx =>
+                    {
+                        // Ensure UTF-8 encoding for text files
+                        var contentType = ctx.Context.Response.ContentType;
+                        if (!string.IsNullOrEmpty(contentType) && 
+                            (contentType.StartsWith("text/") || 
+                             contentType.StartsWith("application/javascript") ||
+                             contentType.StartsWith("application/json")))
+                        {
+                            if (!contentType.Contains("charset"))
+                            {
+                                ctx.Context.Response.ContentType = contentType + "; charset=utf-8";
+                            }
+                        }
+                    }
                 });
                 
-                Console.WriteLine("Static file middleware configured for React app");
+                Console.WriteLine("Static file middleware configured for React app with UTF-8 encoding");
             }
             else
             {
@@ -108,8 +132,26 @@ namespace VibeShootout.Backend
                 Console.WriteLine($"Wwwroot exists: {Directory.Exists(wwwrootPath)}");
                 
                 // Fallback to serving from wwwroot if build folder doesn't exist
-                _app.UseStaticFiles();
-                Console.WriteLine("Static file middleware configured for wwwroot");
+                _app.UseStaticFiles(new StaticFileOptions
+                {
+                    ContentTypeProvider = contentTypeProvider,
+                    OnPrepareResponse = ctx =>
+                    {
+                        // Ensure UTF-8 encoding for text files
+                        var contentType = ctx.Context.Response.ContentType;
+                        if (!string.IsNullOrEmpty(contentType) && 
+                            (contentType.StartsWith("text/") || 
+                             contentType.StartsWith("application/javascript") ||
+                             contentType.StartsWith("application/json")))
+                        {
+                            if (!contentType.Contains("charset"))
+                            {
+                                ctx.Context.Response.ContentType = contentType + "; charset=utf-8";
+                            }
+                        }
+                    }
+                });
+                Console.WriteLine("Static file middleware configured for wwwroot with UTF-8 encoding");
             }
 
             // API endpoints (these take priority over fallback)
@@ -157,14 +199,18 @@ namespace VibeShootout.Backend
                 // Use the React app's index.html for SPA fallback
                 _app.MapFallbackToFile("index.html", new StaticFileOptions
                 {
-                    FileProvider = reactFileProvider
+                    FileProvider = reactFileProvider,
+                    ContentTypeProvider = contentTypeProvider
                 });
                 Console.WriteLine("SPA fallback configured for React app");
             }
             else
             {
                 // Fallback to wwwroot index.html
-                _app.MapFallbackToFile("index.html");
+                _app.MapFallbackToFile("index.html", new StaticFileOptions
+                {
+                    ContentTypeProvider = contentTypeProvider
+                });
                 Console.WriteLine("SPA fallback configured for wwwroot");
             }
 

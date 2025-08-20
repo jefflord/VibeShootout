@@ -284,7 +284,7 @@ function ConfigModal({ config, onSave, onClose }) {
                 placeholder="C:\path\to\your\git\repository"
               />
               <FilePickerButton type="button" onClick={handleBrowseFolder}>
-                ?? Browse Folder
+                [FOLDER] Browse Folder
               </FilePickerButton>
               <HelperText>
                 Path to the Git repository you want to monitor for changes.

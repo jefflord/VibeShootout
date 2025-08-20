@@ -107,13 +107,13 @@ function Header({ onEditConfig, isConnected, repositoryPath, config }) {
         
         {provider !== 'Unknown' && (
           <ProviderBadge provider={provider}>
-            {provider === 'Ollama' ? '??' : '??'} {provider}
+            {provider === 'Ollama' ? '[AI]' : '[API]'} {provider}
           </ProviderBadge>
         )}
         
         {repositoryPath && (
           <RepositoryPath title={repositoryPath}>
-            ?? {repositoryPath}
+            [REPO] {repositoryPath}
           </RepositoryPath>
         )}
         

@@ -35,7 +35,7 @@ namespace VibeShootout
                 Console.WriteLine("Creating AIService...");
                 var aiService = new AIService(httpClient);
                 
-                Console.WriteLine("Creating FileWatcherService with review cache...");
+                Console.WriteLine("Creating FileWatcherService...");
                 _fileWatcherService = new FileWatcherService(gitService, aiService, configService);
                 
                 Console.WriteLine("Creating WebServer...");

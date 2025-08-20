@@ -455,7 +455,7 @@ function CodeReviewDisplay({ reviews }) {
     return (
       <Container>
         <EmptyState>
-          <EmptyStateIcon>??</EmptyStateIcon>
+          <EmptyStateIcon>&lt;AI&gt;</EmptyStateIcon>
           <EmptyStateText>Waiting for code changes...</EmptyStateText>
           <EmptyStateSubtext>
             Configure a repository path and start making changes to tracked files to see AI-powered code reviews here.
@@ -484,7 +484,7 @@ function CodeReviewDisplay({ reviews }) {
                 {review.isSuccess 
                   ? '? Code Review Completed' 
                   : skipped 
-                    ? '?? Review Skipped' 
+                    ? '? Review Skipped' 
                     : '? Review Failed'}
               </ReviewTitle>
               
@@ -493,15 +493,15 @@ function CodeReviewDisplay({ reviews }) {
                 
                 <MetricsRow>
                   {review.durationMs !== undefined && review.durationMs !== null && (
-                    <Duration>?? {formatDuration(review.durationMs)}</Duration>
+                    <Duration>? {formatDuration(review.durationMs)}</Duration>
                   )}
                   {provider !== 'Unknown' && (
                     <ProviderBadge provider={provider}>
-                      {provider === 'Ollama' ? '??' : '??'} {provider}
+                      {provider === 'Ollama' ? 'AI' : 'API'} {provider}
                     </ProviderBadge>
                   )}
                   {diffType && (
-                    <GitBadge title="Git diff type">?? {diffType}</GitBadge>
+                    <GitBadge title="Git diff type">FILE {diffType}</GitBadge>
                   )}
                 </MetricsRow>
                 
@@ -510,12 +510,12 @@ function CodeReviewDisplay({ reviews }) {
                   <MetricsRow>
                     {ollamaMetrics.promptTokensPerSecond != null && (
                       <TokenMetric title="Input tokens per second">
-                        ?? {formatTokensPerSecond(ollamaMetrics.promptTokensPerSecond)}
+                        IN {formatTokensPerSecond(ollamaMetrics.promptTokensPerSecond)}
                       </TokenMetric>
                     )}
                     {ollamaMetrics.outputTokensPerSecond != null && (
                       <TokenMetric title="Output tokens per second">
-                        ?? {formatTokensPerSecond(ollamaMetrics.outputTokensPerSecond)}
+                        OUT {formatTokensPerSecond(ollamaMetrics.outputTokensPerSecond)}
                       </TokenMetric>
                     )}
                     {ollamaMetrics.totalDurationSeconds != null && (
@@ -529,13 +529,13 @@ function CodeReviewDisplay({ reviews }) {
                 {provider === 'OpenAI' && openAIUsage && (
                   <MetricsRow>
                     <OpenAIMetric title="Prompt tokens">
-                      ?? {openAIUsage.promptTokens} tokens
+                      IN {openAIUsage.promptTokens} tokens
                     </OpenAIMetric>
                     <OpenAIMetric title="Completion tokens">
-                      ?? {openAIUsage.completionTokens} tokens
+                      OUT {openAIUsage.completionTokens} tokens
                     </OpenAIMetric>
                     <OpenAIMetric title="Total tokens">
-                      ?? {openAIUsage.totalTokens} total
+                      TOT {openAIUsage.totalTokens} total
                     </OpenAIMetric>
                   </MetricsRow>
                 )}
@@ -557,7 +557,7 @@ function CodeReviewDisplay({ reviews }) {
                   {provider === 'Ollama' && ollamaMetrics && (
                     <MetricsSection>
                       <MetricsHeader provider="Ollama">
-                        ?? Ollama Performance Metrics
+                        [AI] Ollama Performance Metrics
                       </MetricsHeader>
                       <MetricsGrid>
                         <MetricItem>
@@ -599,7 +599,7 @@ function CodeReviewDisplay({ reviews }) {
                   {provider === 'OpenAI' && openAIUsage && (
                     <MetricsSection>
                       <MetricsHeader provider="OpenAI">
-                        ?? OpenAI Usage Statistics
+                        [API] OpenAI Usage Statistics
                       </MetricsHeader>
                       <MetricsGrid>
                         <MetricItem>
@@ -629,7 +629,7 @@ function CodeReviewDisplay({ reviews }) {
                   {review.diff && (
                     <DiffSection>
                       <DiffHeader>
-                        ?? Git Diff - Tracked Files Only
+                        [FILE] Git Diff - Tracked Files Only
                         <DiffStats>{getDiffStats(review.diff)}</DiffStats>
                       </DiffHeader>
                       <DiffContent>{review.diff}</DiffContent>
@@ -678,7 +678,7 @@ function CodeReviewDisplay({ reviews }) {
                   {review.diff && (
                     <DiffSection>
                       <DiffHeader>
-                        ?? Git Diff - Tracked Files Only (Duplicate)
+                        [FILE] Git Diff - Tracked Files Only (Duplicate)
                         <DiffStats>{getDiffStats(review.diff)}</DiffStats>
                       </DiffHeader>
                       <DiffContent>{review.diff}</DiffContent>
