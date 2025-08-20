@@ -1,0 +1,5 @@
+{
+  "OllamaUrl": "http://10.0.0.90:11434",
+  "ReviewPrompt": "Below is git diff, please create a code review using this information",
+  "RepositoryPath": ""
+}
