@@ -42,7 +42,7 @@ namespace VibeShootout.Backend
             {
                 options.AddDefaultPolicy(policy =>
                 {
-                    policy.WithOrigins("http://localhost:5632", "http://127.0.0.1:5632")
+                    policy.WithOrigins("http://localhost:5632", "http://127.0.0.1:5632", "http://127.0.0.1:5632 FUCK")
                           .AllowAnyMethod()
                           .AllowAnyHeader()
                           .AllowCredentials(); // Important for SignalR

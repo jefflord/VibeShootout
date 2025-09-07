@@ -20,7 +20,7 @@ namespace VibeShootout
             {
                 Console.WriteLine("Starting VibeShootout application...");
                 Console.WriteLine("Creating WPF App instance...");
-
+                
                 var app = new App();
 
                 // Add unhandled exception handlers
@@ -41,6 +41,7 @@ namespace VibeShootout
                 var mainWindow = new MainWindow();
 
                 Console.WriteLine("Setting MainWindow as application MainWindow...");
+                app.MainWindow = mainWindow;
                 app.MainWindow = mainWindow;
 
                 Console.WriteLine("Showing MainWindow...");
